@@ -1,1 +1,40 @@
+name: MLflow CI Advanced
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  train-and-docker:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install MLflow
+        run: pip install mlflow==2.19.0
+
+      - name: Run MLflow Project
+        run: |
+          cd MLProject
+          mlflow run .
+
+      - name: Build Docker image with MLflow
+        run: |
+          cd MLProject
+          mlflow models build-docker \
+            -m runs:/$(mlflow runs list --max-results 1 | tail -n 1 | awk '{print $1}') \
+            -n ${{ secrets.DOCKER_USERNAME }}/telco-churn-mlflow
+
+      - name: Login to Docker Hub
+        run: echo "${{ secrets.DOCKER_TOKEN }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
+
+      - name: Push Docker image
+        run: docker push ${{ secrets.DOCKER_USERNAME }}/telco-churn-mlflow
 
